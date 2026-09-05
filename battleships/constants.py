@@ -45,6 +45,10 @@ WINDOW_HEIGHT: int = MARGIN + TITLE_SPACE + BOARD_PIXEL_SIZE + STATUS_SPACE
 FPS: int = 30
 AI_MOVE_DELAY_MS: int = 600  # pause before the computer "thinks" and fires
 
+# --- Networking --------------------------------------------------------------
+
+DEFAULT_PORT: int = 5555
+
 # --- Colours (RGB) ---------------------------------------------------------
 
 BACKGROUND: Tuple[int, int, int] = (10, 25, 47)
