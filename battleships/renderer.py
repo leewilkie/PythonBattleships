@@ -1,6 +1,6 @@
 """
 The Renderer class - all pygame drawing code lives here, so the game logic
-classes (Board, Ship, Game, ...) don't need to know pygame exists at all.
+classes (Board, Ship, ...) don't need to know pygame exists at all.
 """
 
 from typing import Optional, Protocol, Tuple
@@ -9,17 +9,16 @@ import pygame
 
 from . import constants
 from .board import Board, Position
-from .game import GameState
+from .game_state import GameState
 
 
 class GameView(Protocol):
-    """The shape Renderer needs in order to draw a game: a local Game
-    satisfies this naturally, and so does a network-driven RemoteGameView -
-    Renderer doesn't care which one it's given, only that state is never
-    mutated here."""
+    """The shape Renderer needs in order to draw a game: the network-driven
+    RemoteGameView satisfies this naturally, and Renderer doesn't mutate
+    state, only reads it."""
 
-    human_board: Board
-    computer_board: Board
+    player_board: Board
+    opponent_board: Board
     state: GameState
 
     def is_over(self) -> bool: ...
@@ -38,13 +37,13 @@ class Renderer:
         self.screen.fill(constants.BACKGROUND)
 
         self._draw_board(
-            game.human_board,
+            game.player_board,
             constants.LEFT_BOARD_ORIGIN,
             reveal_ships=True,
             title="Your Fleet",
         )
         self._draw_board(
-            game.computer_board,
+            game.opponent_board,
             constants.RIGHT_BOARD_ORIGIN,
             reveal_ships=False,
             title="Enemy Waters",
@@ -95,10 +94,10 @@ class Renderer:
     def _draw_status(self, game: GameView) -> None:
         """Draw a line of text describing whose turn it is (or who won)."""
         messages = {
-            GameState.HUMAN_TURN: "Your turn - click a cell in Enemy Waters",
-            GameState.COMPUTER_TURN: "Opponent is thinking...",
-            GameState.HUMAN_WON: "You win!",
-            GameState.COMPUTER_WON: "Opponent wins!",
+            GameState.PLAYER_TURN: "Your turn - click a cell in Enemy Waters",
+            GameState.OPPONENT_TURN: "Opponent is thinking...",
+            GameState.PLAYER_WON: "You win!",
+            GameState.OPPONENT_WON: "Opponent wins!",
         }
         message = messages[game.state]
         surface = self.font.render(message, True, constants.TEXT_COLOR)
@@ -111,7 +110,7 @@ class Renderer:
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
 
-        text = "YOU WIN!" if game.state == GameState.HUMAN_WON else "OPPONENT WINS!"
+        text = "YOU WIN!" if game.state == GameState.PLAYER_WON else "OPPONENT WINS!"
         surface = self.big_font.render(text, True, constants.TEXT_COLOR)
         rect = surface.get_rect(
             center=(constants.WINDOW_WIDTH // 2, constants.WINDOW_HEIGHT // 2)

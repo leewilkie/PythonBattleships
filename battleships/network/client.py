@@ -1,7 +1,7 @@
 """
 The network client side: a thin socket wrapper that hands decoded messages
-to the pygame loop, plus RemoteGameView - a stand-in for Game that Renderer
-can draw without any changes, built entirely from what the server tells us.
+to the pygame loop, plus RemoteGameView - the game state Renderer draws,
+built entirely from what the server tells us.
 """
 
 import queue
@@ -10,7 +10,7 @@ import threading
 from typing import Any, Dict, List
 
 from ..board import Board, ShotResult
-from ..game import GameState
+from ..game_state import GameState
 from ..ship import Position, Ship
 from . import protocol
 from .protocol import MessageStream
@@ -59,9 +59,9 @@ class NetworkClient:
 
 
 class RemoteGameView:
-    """A Game-shaped object driven entirely by server messages: exposes
-    human_board, computer_board, state and is_over() so Renderer.draw can
-    render it exactly like a local Game."""
+    """A game-shaped object driven entirely by server messages: exposes
+    player_board, opponent_board, state and is_over() so Renderer.draw can
+    render it."""
 
     def __init__(
         self,
@@ -72,39 +72,39 @@ class RemoteGameView:
     ) -> None:
         self.player_id = player_id
 
-        self.human_board = Board(grid_size)
+        self.player_board = Board(grid_size)
         for ship_data in own_ships:
             positions: List[Position] = [tuple(p) for p in ship_data["positions"]]
             ship = Ship(ship_data["name"], len(positions))
             ship.place(positions)
-            self.human_board.ships.append(ship)
+            self.player_board.ships.append(ship)
 
-        # The enemy board's real ship layout is never sent to us - only shot
+        # The opponent's real ship layout is never sent to us - only shot
         # outcomes - so this mirror stays ship-less; its .shots dict is
         # written directly from fire_result messages instead of going
         # through receive_shot (which would have nothing to hit).
-        self.computer_board = Board(grid_size)
+        self.opponent_board = Board(grid_size)
 
         self.state = (
-            GameState.HUMAN_TURN if first_player == player_id else GameState.COMPUTER_TURN
+            GameState.PLAYER_TURN if first_player == player_id else GameState.OPPONENT_TURN
         )
 
     def is_over(self) -> bool:
-        return self.state in (GameState.HUMAN_WON, GameState.COMPUTER_WON)
+        return self.state in (GameState.PLAYER_WON, GameState.OPPONENT_WON)
 
     def apply_fire_result(self, by: int, position: Position, result: ShotResult) -> None:
         if result == ShotResult.ALREADY_SHOT:
             return  # nothing changed, doesn't end anyone's turn
 
         if by == self.player_id:
-            self.computer_board.shots[position] = result in (
+            self.opponent_board.shots[position] = result in (
                 ShotResult.HIT,
                 ShotResult.SUNK,
             )
-            self.state = GameState.COMPUTER_TURN
+            self.state = GameState.OPPONENT_TURN
         else:
-            self.human_board.receive_shot(position)
-            self.state = GameState.HUMAN_TURN
+            self.player_board.receive_shot(position)
+            self.state = GameState.PLAYER_TURN
 
     def apply_game_over(self, winner: int) -> None:
-        self.state = GameState.HUMAN_WON if winner == self.player_id else GameState.COMPUTER_WON
+        self.state = GameState.PLAYER_WON if winner == self.player_id else GameState.OPPONENT_WON

@@ -30,7 +30,7 @@ import pygame
 
 from battleships import constants
 from battleships.board import ShotResult
-from battleships.game import GameState
+from battleships.game_state import GameState
 from battleships.network import protocol
 from battleships.network.client import NetworkClient, RemoteGameView
 from battleships.network.server import BattleshipServer
@@ -106,7 +106,7 @@ def main() -> None:
                 running = False
 
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                if view.state == GameState.HUMAN_TURN:
+                if view.state == GameState.PLAYER_TURN:
                     cell = Renderer.screen_to_grid(
                         event.pos, constants.RIGHT_BOARD_ORIGIN, constants.GRID_SIZE
                     )

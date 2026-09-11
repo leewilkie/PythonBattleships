@@ -43,7 +43,6 @@ WINDOW_HEIGHT: int = MARGIN + TITLE_SPACE + BOARD_PIXEL_SIZE + STATUS_SPACE
 # --- Timing ----------------------------------------------------------------
 
 FPS: int = 30
-AI_MOVE_DELAY_MS: int = 600  # pause before the computer "thinks" and fires
 
 # --- Networking --------------------------------------------------------------
 

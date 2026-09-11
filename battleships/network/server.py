@@ -100,7 +100,7 @@ class BattleshipServer:
             self._broadcast(protocol.make_fire_result(player_id, position, result))
 
             if result == ShotResult.ALREADY_SHOT:
-                continue  # doesn't end their turn, matches single-player behaviour
+                continue  # ignore repeat shots at an already-shot cell, it's still their turn
 
             if defender_board.all_ships_sunk():
                 self._broadcast(protocol.make_game_over(winner=player_id))
