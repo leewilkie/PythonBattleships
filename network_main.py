@@ -16,8 +16,10 @@ each client only ever sees its own ships plus the shots fired so far.
 
 import argparse
 import os
+import queue
 import sys
 import threading
+from typing import NoReturn
 
 # Must be set before pygame.init(): with two game windows on one machine,
 # each turn means clicking into whichever window doesn't currently have
@@ -88,10 +90,43 @@ def apply_messages(view: RemoteGameView, client: NetworkClient) -> None:
             view.apply_game_over(message["winner"])
 
 
+def _fail(message: str) -> NoReturn:
+    """Print a one-line error and exit, instead of an unhandled traceback."""
+    print(f"Error: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
 def main() -> None:
     args = parse_args()
-    client = connect(args)
-    view = handshake(client)
+
+    if args.host:
+        print(f"Waiting for the other player to connect on port {args.port}...", flush=True)
+    else:
+        print(f"Connecting to {args.connect}:{args.port}...", flush=True)
+
+    try:
+        client = connect(args)
+    except OSError as exc:
+        if args.host:
+            _fail(f"Could not start the server on port {args.port} - {exc}")
+        else:
+            _fail(f"Could not connect to {args.connect}:{args.port} - {exc}")
+
+    try:
+        view = handshake(client)
+    except queue.Empty:
+        if args.host:
+            _fail(
+                f"Timed out after {HANDSHAKE_TIMEOUT_SECONDS:.0f}s waiting for the other "
+                "player to connect."
+            )
+        else:
+            _fail(
+                f"Timed out after {HANDSHAKE_TIMEOUT_SECONDS:.0f}s waiting for the host to "
+                "start the game."
+            )
+
+    print("Both players connected - the game begins now!", flush=True)
 
     pygame.init()
     pygame.display.set_caption("Battleships - Multiplayer")
