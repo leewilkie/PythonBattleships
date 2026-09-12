@@ -3,13 +3,14 @@ The Renderer class - all pygame drawing code lives here, so the game logic
 classes (Board, Ship, ...) don't need to know pygame exists at all.
 """
 
-from typing import Optional, Protocol, Tuple
+from typing import List, Optional, Protocol, Tuple
 
 import pygame
 
 from . import constants
 from .board import Board, Position
 from .game_state import GameState
+from .ship import Ship
 
 
 class GameView(Protocol):
@@ -64,6 +65,7 @@ class Renderer:
 
         for row in range(board.size):
             for col in range(board.size):
+                position = (row, col)
                 rect = pygame.Rect(
                     origin_x + col * constants.CELL_SIZE,
                     origin_y + row * constants.CELL_SIZE,
@@ -71,14 +73,59 @@ class Renderer:
                     constants.CELL_SIZE,
                 )
 
-                colour = constants.WATER
-                if reveal_ships and board.ship_at((row, col)) is not None:
-                    colour = constants.SHIP_COLOR
+                pygame.draw.rect(self.screen, constants.WATER, rect)
 
-                pygame.draw.rect(self.screen, colour, rect)
+                ship = board.ship_at(position) if reveal_ships else None
+                if ship is not None:
+                    self._draw_ship_cell(rect, ship, position)
+
                 pygame.draw.rect(self.screen, constants.GRID_LINE, rect, width=1)
 
-                self._draw_shot_marker(rect, board.shots.get((row, col)))
+                self._draw_shot_marker(rect, board.shots.get(position))
+
+    def _draw_ship_cell(self, rect: pygame.Rect, ship: Ship, position: Position) -> None:
+        """Fill in a single cell of a ship. The bow and stern (the ship's first
+        and last cells) are drawn as triangles pointing outward, so the ship's
+        extent and orientation are visible at a glance; middle cells (and
+        single-cell ships) are plain squares."""
+        direction = self._end_cap_direction(ship, position)
+        if direction is None:
+            pygame.draw.rect(self.screen, constants.SHIP_COLOR, rect)
+            return
+
+        pygame.draw.polygon(
+            self.screen, constants.SHIP_COLOR, self._triangle_points(rect, direction)
+        )
+
+    @staticmethod
+    def _end_cap_direction(ship: Ship, position: Position) -> Optional[str]:
+        """Return the direction ("up"/"down"/"left"/"right") the end-cap triangle
+        at position should point, or None if position is a middle segment (or
+        this is a size-1 ship, which has no meaningful orientation)."""
+        positions = ship.positions
+        if len(positions) < 2:
+            return None
+
+        horizontal = positions[0][0] == positions[1][0]
+
+        if position == positions[0]:
+            return "left" if horizontal else "up"
+        if position == positions[-1]:
+            return "right" if horizontal else "down"
+        return None
+
+    @staticmethod
+    def _triangle_points(
+        rect: pygame.Rect, direction: str
+    ) -> List[Tuple[int, int]]:
+        """The three corners of an end-cap triangle pointing out of rect."""
+        if direction == "left":
+            return [rect.midleft, rect.topright, rect.bottomright]
+        if direction == "right":
+            return [rect.midright, rect.topleft, rect.bottomleft]
+        if direction == "up":
+            return [rect.midtop, rect.bottomleft, rect.bottomright]
+        return [rect.midbottom, rect.topleft, rect.topright]
 
     def _draw_shot_marker(self, rect: pygame.Rect, shot: Optional[bool]) -> None:
         """Draw a marker on a cell if it has been shot at: a hit or a miss."""
